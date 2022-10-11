@@ -1,4 +1,4 @@
-package com.kms.springbatchprj.batchConfig;
+package com.kms.springbatchprj.processorConfig;
 
 import com.kms.springbatchprj.entity.CustomerEntity;
 import org.springframework.batch.item.ItemProcessor;

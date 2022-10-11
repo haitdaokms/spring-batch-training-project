@@ -1,6 +1,7 @@
 package com.kms.springbatchprj.batchConfig;
 
 import com.kms.springbatchprj.entity.CustomerEntity;
+import com.kms.springbatchprj.processorConfig.CustomerProcessor;
 import com.kms.springbatchprj.repository.CustomerRepository;
 import lombok.AllArgsConstructor;
 import org.springframework.batch.core.Job;
@@ -8,17 +9,25 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.item.data.RepositoryItemReader;
 import org.springframework.batch.item.data.RepositoryItemWriter;
 import org.springframework.batch.item.file.FlatFileItemReader;
+import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.LineMapper;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
 import org.springframework.batch.item.file.mapping.DefaultLineMapper;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.data.domain.Sort;
+
+import java.util.HashMap;
+import java.util.Map;
 
 @Configuration
 @EnableBatchProcessing
@@ -38,7 +47,26 @@ public class SpringBatchConfig {
         itemReader.setLineMapper(lineMapper());
         return itemReader;
     }
-//    mapper is just act like a supporter for reader to mapping...
+
+    @Bean
+    public FlatFileItemWriter<CustomerEntity> writerToCsv() {
+        FlatFileItemWriter<CustomerEntity> itemWriter = new FlatFileItemWriter<>();
+        itemWriter.setName("csvWriter");
+        itemWriter.setResource(new FileSystemResource("src/main/resources/export.csv"));
+        itemWriter.setLineAggregator(getDelimitedLineAggregator());
+        return itemWriter;
+    }
+
+    public DelimitedLineAggregator<CustomerEntity> getDelimitedLineAggregator() {
+        BeanWrapperFieldExtractor<CustomerEntity> beanWrapperFieldExtractor = new BeanWrapperFieldExtractor<CustomerEntity>();
+        beanWrapperFieldExtractor.setNames(new String[] {"id", "firstName", "lastName", "email", "gender", "contactNo", "country", "dob"});
+        DelimitedLineAggregator<CustomerEntity> delimitedLineAggregator = new DelimitedLineAggregator<CustomerEntity>();
+        delimitedLineAggregator.setDelimiter(",");
+        delimitedLineAggregator.setFieldExtractor(beanWrapperFieldExtractor);
+        return delimitedLineAggregator;
+    }
+
+    //    mapper is just act like a supporter for reader to mapping...
     private LineMapper<CustomerEntity> lineMapper() {
         DefaultLineMapper<CustomerEntity> lineMapper = new DefaultLineMapper<>();
         DelimitedLineTokenizer delimitedLineTokenizer = new DelimitedLineTokenizer();
@@ -69,6 +97,17 @@ public class SpringBatchConfig {
         return itemWriter;
     }
 
+    @Bean
+    public RepositoryItemReader<CustomerEntity> readerFromDatabase() {
+        RepositoryItemReader<CustomerEntity> itemReader = new RepositoryItemReader<>();
+        itemReader.setRepository(customerRepository);
+        itemReader.setMethodName("findAll");
+        Map<String, Sort.Direction> map = new HashMap<>();
+        map.put("id", Sort.Direction.ASC);
+        itemReader.setSort(map);
+        return itemReader;
+    }
+
 //    chunk = 10 means this step will work on 10 lines of csv file / time - amount of data
     @Bean
     public Step writeCsvToDatabaseStep () {
@@ -82,11 +121,29 @@ public class SpringBatchConfig {
     }
 
     @Bean
+    public Step exportDataToCsvStep() {
+        return stepBuilderFactory.get("database-csv").<CustomerEntity, CustomerEntity>
+                chunk(10)
+                .reader(readerFromDatabase())
+                .processor(customerProcessor())
+                .writer(writerToCsv())
+                .taskExecutor(taskExecutor())
+                .build();
+    }
+
+    @Bean
+    public Job exportDbToCsvJob() {
+        return jobBuilderFactory.get("export-customer")
+                .flow(exportDataToCsvStep())
+                .end().build();
+    }
+
+    /*@Bean
     public Job writeCsvToDatabaseJob() {
         return jobBuilderFactory.get("import-customer")
                 .flow(writeCsvToDatabaseStep())
                 .end().build();
-    }
+    }*/
 
     @Bean
     public TaskExecutor taskExecutor() {
