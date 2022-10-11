@@ -1,40 +1,36 @@
 package com.kms.springbatchprj.entity;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.Table;
 
-@Table(name = "customer")
+@Table(name = "customers_information")
 @Entity
-@Getter
-@Setter
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class CustomerEntity {
     @Id
-    @Column(name = "id")
-    private String customerId;
+    @Column(name = "CUSTOMER_ID")
+    private int id;
 
-    @Column(name = "firstname")
+    @Column(name = "FIRST_NAME")
     private String firstName;
-
-    @Column(name = "lastname")
+    @Column(name = "LAST_NAME")
     private String lastName;
-
-    @Column(name = "email")
+    @Column(name = "EMAIL")
     private String email;
-
-    @Column(name = "gender")
+    @Column(name = "GENDER")
     private String gender;
-
-    @Column(name = "contact")
+    @Column(name = "CONTACT")
     private String contactNo;
-
-    @Column(name = "country")
+    @Column(name = "COUNTRY")
     private String country;
-
-    @Column(name = "dob")
+    @Column(name = "DOB")
     private String dob;
 }
